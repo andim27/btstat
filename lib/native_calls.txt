@@ -1,0 +1,65 @@
+To add the getBatteryLevel method to your native Android code, you'll need to create a new Java or Kotlin class that extends the FlutterActivity or FlutterFragmentActivity class, depending on your app's architecture.
+
+Here's an example implementation for the Java version of the class:
+
+java
+Copy code
+package com.example.myapp;
+
+import android.os.BatteryManager;
+import android.os.Build.VERSION;
+import android.os.Build.VERSION_CODES;
+import androidx.annotation.NonNull;
+import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodCall;
+import io.flutter.plugin.common.MethodChannel;
+import io.flutter.plugins.GeneratedPluginRegistrant;
+
+public class MainActivity extends FlutterActivity implements MethodChannel.MethodCallHandler {
+    private static final String CHANNEL = "com.example.battery/battery";
+
+    @Override
+    public void configureFlutterEngine(@NonNull FlutterEngine flutterEngine) {
+        GeneratedPluginRegistrant.registerWith(flutterEngine);
+        new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), CHANNEL)
+                .setMethodCallHandler(this);
+    }
+
+    private int getBatteryLevel() {
+        int batteryLevel = -1;
+        if (VERSION.SDK_INT >= VERSION_CODES.LOLLIPOP) {
+            BatteryManager batteryManager = getSystemService(BatteryManager.class);
+            batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+        } else {
+            Intent intent = new ContextWrapper(getApplicationContext())
+                    .registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+            batteryLevel = (intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) * 100)
+                    / intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+        }
+        return batteryLevel;
+    }
+
+    @Override
+    public void onMethodCall(MethodCall call, MethodChannel.Result result) {
+        if (call.method.equals("getBatteryLevel")) {
+            int batteryLevel = getBatteryLevel();
+            if (batteryLevel != -1) {
+                result.success(batteryLevel);
+            } else {
+                result.error("UNAVAILABLE", "Battery level not available.", null);
+            }
+        } else {
+            result.notImplemented();
+        }
+    }
+}
+In this example, the MainActivity class extends the FlutterActivity class and implements the MethodChannel.MethodCallHandler interface to handle method calls from Flutter.
+
+The configureFlutterEngine method registers the MethodChannel with the Flutter engine, and the getBatteryLevel method uses the BatteryManager class to get the current battery level.
+
+The onMethodCall method handles the getBatteryLevel method call from Flutter by calling getBatteryLevel and returning the result as a success or a failure using the MethodChannel.Result object.
+
+Note that you'll need to replace com.example.myapp with the package name of your app in the MainActivity class. You'll also need to add the android.permission.BATTERY_STATS permission to your app's AndroidManifest.xml file.
+
+Finally, make sure to import the MainActivity class in your Flutter project and use it as the entry point for your app's native Android code. You can do this by updating your MainActivity.kt or MainActivity.java file to extend MainActivity instead of FlutterActivity.
